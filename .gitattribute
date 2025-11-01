@@ -1,0 +1,9 @@
+# YAML files - always use LF
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# Go files
+*.go text eol=lf
+
+# Markdown
+*.md text eol=lf
