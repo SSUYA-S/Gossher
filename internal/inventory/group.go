@@ -1,6 +1,8 @@
 package inventory
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // Ensure Group implements the interfaces
 var (
@@ -10,6 +12,7 @@ var (
 
 // Group represents a collection of hosts that can be managed together.
 type Group struct {
+	Type        DocumentType      `yaml:"type"`
 	Name        string            `yaml:"name"`
 	Description string            `yaml:"description,omitempty"`
 	HostIDs     []string          `yaml:"host_ids"`
@@ -21,6 +24,7 @@ type Group struct {
 // NewGroup creates a new Group with basic information.
 func NewGroup(name string) *Group {
 	return &Group{
+		Type:            TypeGroup,
 		Name:            name,
 		HostIDs:         []string{},
 		Vars:            make(map[string]string),

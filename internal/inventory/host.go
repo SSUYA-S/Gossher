@@ -14,6 +14,7 @@ var (
 
 // Host represents a remote server accessible via SSH.
 type Host struct {
+	Type DocumentType `yaml:"type"`
 	// Basic identification
 	ID          string `yaml:"id"`
 	Name        string `yaml:"name"`
@@ -66,6 +67,7 @@ func (s HostStatus) String() string {
 // NewHost creates a new Host with default values.
 func NewHost(id, name, address string) *Host {
 	return &Host{
+		Type:    TypeHost,
 		ID:      id,
 		Name:    name,
 		Address: address,

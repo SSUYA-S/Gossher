@@ -9,9 +9,10 @@ var (
 
 // Credential represents SSH authentication information that can be shared across multiple hosts.
 type Credential struct {
-	ID          string `yaml:"id"`
-	Name        string `yaml:"name"`
-	Description string `yaml:"description,omitempty"`
+	Type        DocumentType `yaml:"type"`
+	ID          string       `yaml:"id"`
+	Name        string       `yaml:"name"`
+	Description string       `yaml:"description,omitempty"`
 
 	User     string `yaml:"user"`
 	KeyPath  string `yaml:"key_path,omitempty"`
@@ -31,18 +32,19 @@ const (
 // NewCredential creates a new Credential with basic information.
 func NewCredential(id, name, user string) *Credential {
 	return &Credential{
+		Type: TypeCredential,
 		ID:   id,
 		Name: name,
 		User: user,
 	}
 }
 
-// Identifiable interface implementation
+// GetID Identifiable interface implementation
 func (c *Credential) GetID() string {
 	return c.ID
 }
 
-// Nameable interface implementation
+// GetName Nameable interface implementation
 func (c *Credential) GetName() string {
 	return c.Name
 }
@@ -51,7 +53,7 @@ func (c *Credential) SetName(name string) {
 	c.Name = name
 }
 
-// Describable interface implementation
+// GetDescription Describable interface implementation
 func (c *Credential) GetDescription() string {
 	return c.Description
 }
@@ -85,8 +87,8 @@ func (c *Credential) Clone() interface{} {
 	return &clone
 }
 
-// Type returns the authentication type of this credential.
-func (c *Credential) Type() CredentialType {
+// getCredentialType returns the authentication type of this credential.
+func (c *Credential) getCredentialType() CredentialType {
 	if c.KeyPath != "" {
 		return CredentialTypeKey
 	}

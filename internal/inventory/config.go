@@ -1,4 +1,4 @@
-package config
+package inventory
 
 import (
 	"fmt"
@@ -11,17 +11,16 @@ import (
 
 // Config holds application-wide configuration.
 type Config struct {
-	dataDir string `yaml:"data_dir"` // Base directory for inventory data
-
-	theme    string `yaml:"theme"`
-	language string `yaml:"language"`
-
-	defaultSSHPort int `yaml:"default_ssh_port"`
-	sshTimeout     int `yaml:"ssh_timeout"`
+	Type           DocumentType `yaml:"type"`
+	DataDir        string       `yaml:"data_dir"`
+	Theme          string       `yaml:"theme"`
+	Language       string       `yaml:"language"`
+	DefaultSSHPort int          `yaml:"default_ssh_port"`
+	SSHTimeout     int          `yaml:"ssh_timeout"`
 
 	// Runtime - not saved
-	baseDir    string `yaml:"-"` // Base directory (.gossher)
-	configPath string `yaml:"-"` // Path to config.yaml file
+	BaseDir    string `yaml:"-"`
+	ConfigPath string `yaml:"-"`
 }
 
 // Global configuration singleton
@@ -35,13 +34,14 @@ func Default() *Config {
 	baseDir := defaultBaseDir()
 
 	return &Config{
-		dataDir:        baseDir,
-		theme:          "light",
-		language:       "en",
-		defaultSSHPort: 22,
-		sshTimeout:     30,
-		baseDir:        baseDir,
-		configPath:     filepath.Join(baseDir, "config.yaml"),
+		Type:           TypeConfig,
+		DataDir:        baseDir,
+		Theme:          "light",
+		Language:       "en",
+		DefaultSSHPort: 22,
+		SSHTimeout:     30,
+		BaseDir:        baseDir,
+		ConfigPath:     filepath.Join(baseDir, "config.yaml"),
 	}
 }
 
@@ -75,7 +75,7 @@ func Load() error {
 		}
 
 		cfg = &Config{
-			baseDir: baseDir,
+			BaseDir: baseDir,
 		}
 		if err := yaml.Unmarshal(data, cfg); err != nil {
 			return fmt.Errorf("failed to parse config: %w", err)
@@ -91,7 +91,7 @@ func Load() error {
 
 // saveConfig saves the configuration to file.
 func saveConfig(cfg *Config) error {
-	if err := os.MkdirAll(cfg.baseDir, 0755); err != nil {
+	if err := os.MkdirAll(cfg.BaseDir, 0755); err != nil {
 		return fmt.Errorf("failed to create base directory: %w", err)
 	}
 
@@ -100,7 +100,7 @@ func saveConfig(cfg *Config) error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(cfg.configPath, data, 0644); err != nil {
+	if err := os.WriteFile(cfg.ConfigPath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
@@ -131,15 +131,15 @@ func GetDataDir() string {
 		panic("Config not loaded. Call config.MustLoad() at application startup.")
 	}
 
-	if globalConfig.dataDir == "" {
-		return globalConfig.baseDir
+	if globalConfig.DataDir == "" {
+		return globalConfig.BaseDir
 	}
 
-	if !filepath.IsAbs(globalConfig.dataDir) {
-		return filepath.Join(globalConfig.baseDir, globalConfig.dataDir)
+	if !filepath.IsAbs(globalConfig.DataDir) {
+		return filepath.Join(globalConfig.BaseDir, globalConfig.DataDir)
 	}
 
-	return globalConfig.dataDir
+	return globalConfig.DataDir
 }
 
 // GetTheme returns the configured theme.
@@ -150,7 +150,7 @@ func GetTheme() string {
 	if globalConfig == nil {
 		panic("Config not loaded")
 	}
-	return globalConfig.theme
+	return globalConfig.Theme
 }
 
 // GetLanguage returns the configured language.
@@ -161,7 +161,7 @@ func GetLanguage() string {
 	if globalConfig == nil {
 		panic("Config not loaded")
 	}
-	return globalConfig.language
+	return globalConfig.Language
 }
 
 // GetDefaultSSHPort returns the default SSH port.
@@ -172,7 +172,7 @@ func GetDefaultSSHPort() int {
 	if globalConfig == nil {
 		panic("Config not loaded")
 	}
-	return globalConfig.defaultSSHPort
+	return globalConfig.DefaultSSHPort
 }
 
 // GetSSHTimeout returns the SSH timeout in seconds.
@@ -183,10 +183,10 @@ func GetSSHTimeout() int {
 	if globalConfig == nil {
 		panic("Config not loaded")
 	}
-	return globalConfig.sshTimeout
+	return globalConfig.SSHTimeout
 }
 
-// ===== Setters (Thread-safe write) =====
+// ===== Setters =====
 
 // SetDataDir updates the data directory and saves the config.
 func SetDataDir(dir string) error {
@@ -195,7 +195,7 @@ func SetDataDir(dir string) error {
 		configMutex.Unlock()
 		return fmt.Errorf("config not loaded")
 	}
-	globalConfig.dataDir = dir
+	globalConfig.DataDir = dir
 	configMutex.Unlock()
 
 	return Save()
@@ -208,7 +208,7 @@ func SetTheme(theme string) error {
 		configMutex.Unlock()
 		return fmt.Errorf("config not loaded")
 	}
-	globalConfig.theme = theme
+	globalConfig.Theme = theme
 	configMutex.Unlock()
 
 	return Save()
@@ -221,7 +221,7 @@ func SetLanguage(lang string) error {
 		configMutex.Unlock()
 		return fmt.Errorf("config not loaded")
 	}
-	globalConfig.language = lang
+	globalConfig.Language = lang
 	configMutex.Unlock()
 
 	return Save()
@@ -238,7 +238,7 @@ func SetDefaultSSHPort(port int) error {
 		configMutex.Unlock()
 		return fmt.Errorf("config not loaded")
 	}
-	globalConfig.defaultSSHPort = port
+	globalConfig.DefaultSSHPort = port
 	configMutex.Unlock()
 
 	return Save()
@@ -255,7 +255,7 @@ func SetSSHTimeout(timeout int) error {
 		configMutex.Unlock()
 		return fmt.Errorf("config not loaded")
 	}
-	globalConfig.sshTimeout = timeout
+	globalConfig.SSHTimeout = timeout
 	configMutex.Unlock()
 
 	return Save()
@@ -264,7 +264,7 @@ func SetSSHTimeout(timeout int) error {
 // ===== Batch Update =====
 
 // Update allows updating multiple fields atomically.
-func Update(fn func(*configEditor) error) error {
+func Update(fn func(*ConfigEditor) error) error {
 	configMutex.Lock()
 	defer configMutex.Unlock()
 
@@ -272,53 +272,50 @@ func Update(fn func(*configEditor) error) error {
 		return fmt.Errorf("config not loaded")
 	}
 
-	// Create editor wrapper
-	editor := &configEditor{cfg: globalConfig}
+	editor := &ConfigEditor{cfg: globalConfig}
 
-	// Apply updates
 	if err := fn(editor); err != nil {
 		return err
 	}
 
-	// Save after updates
 	return saveConfig(globalConfig)
 }
 
-// configEditor provides controlled write access to config fields.
-type configEditor struct {
+// ConfigEditor provides controlled write access to config fields.
+type ConfigEditor struct {
 	cfg *Config
 }
 
 // SetDataDir sets the data directory.
-func (e *configEditor) SetDataDir(dir string) {
-	e.cfg.dataDir = dir
+func (e *ConfigEditor) SetDataDir(dir string) {
+	e.cfg.DataDir = dir
 }
 
 // SetTheme sets the theme.
-func (e *configEditor) SetTheme(theme string) {
-	e.cfg.theme = theme
+func (e *ConfigEditor) SetTheme(theme string) {
+	e.cfg.Theme = theme
 }
 
 // SetLanguage sets the language.
-func (e *configEditor) SetLanguage(lang string) {
-	e.cfg.language = lang
+func (e *ConfigEditor) SetLanguage(lang string) {
+	e.cfg.Language = lang
 }
 
 // SetDefaultSSHPort sets the default SSH port.
-func (e *configEditor) SetDefaultSSHPort(port int) error {
+func (e *ConfigEditor) SetDefaultSSHPort(port int) error {
 	if port <= 0 || port > 65535 {
 		return fmt.Errorf("invalid port: %d", port)
 	}
-	e.cfg.defaultSSHPort = port
+	e.cfg.DefaultSSHPort = port
 	return nil
 }
 
 // SetSSHTimeout sets the SSH timeout.
-func (e *configEditor) SetSSHTimeout(timeout int) error {
+func (e *ConfigEditor) SetSSHTimeout(timeout int) error {
 	if timeout <= 0 {
 		return fmt.Errorf("invalid timeout: %d", timeout)
 	}
-	e.cfg.sshTimeout = timeout
+	e.cfg.SSHTimeout = timeout
 	return nil
 }
 
@@ -352,10 +349,10 @@ func GetSnapshot() ConfigSnapshot {
 	}
 
 	return ConfigSnapshot{
-		DataDir:        globalConfig.dataDir,
-		Theme:          globalConfig.theme,
-		Language:       globalConfig.language,
-		DefaultSSHPort: globalConfig.defaultSSHPort,
-		SSHTimeout:     globalConfig.sshTimeout,
+		DataDir:        globalConfig.DataDir,
+		Theme:          globalConfig.Theme,
+		Language:       globalConfig.Language,
+		DefaultSSHPort: globalConfig.DefaultSSHPort,
+		SSHTimeout:     globalConfig.SSHTimeout,
 	}
 }
